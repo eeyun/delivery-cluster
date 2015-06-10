@@ -31,11 +31,13 @@ class Chef
 
       def create_databag
         # Create the data bag
-        ::Chef_Delivery::ClientHelper.enter_client_mode_as_delivery
         begin
           bag = Chef::DataBag.new
           bag.name('changes')
-          bag.create
+
+          DeliverySugar::ChefServer.new.with_server_config do
+            bag.create
+          end
         rescue Net::HTTPServerException => e
           if e.response.code == "409"
             ::Chef::Log.info("DataBag changes already exists.")
@@ -52,18 +54,22 @@ class Chef
         bag_item = Chef::DataBagItem.new
         bag_item.data_bag('changes')
         bag_item.raw_data = dbi_hash
-        bag_item.save
+
+        DeliverySugar::ChefServer.new.with_server_config do
+          bag_item.save
+        end
         ::Chef::Log.info("Saved bag item #{dbi_hash} in data bag #{change_id}.")
-        ::Chef_Delivery::ClientHelper.leave_client_mode_as_delivery
       end
 
       def download_databag
         ## TODO: Look at new delivery-truck syntax
-        ::Chef_Delivery::ClientHelper.enter_client_mode_as_delivery
-        node.run_state['delivery'] = {} if !node.run_state['delivery']
-        node.run_state['delivery']['change'] = {} if !node.run_state['delivery']['change']
-        node.run_state['delivery']['change']['data'] = data_bag_item('changes', change_id)
-        ::Chef_Delivery::ClientHelper.leave_client_mode_as_delivery
+        dbi = DeliverySugar::ChefServer.new.with_server_config do
+          data_bag_item('changes', change_id)
+        end
+
+        node.run_state['delivery'] ||= {}
+        node.run_state['delivery']['change'] ||= {}
+        node.run_state['delivery']['change']['data'] ||= dbi['data']
       end
 
       def data_hash
@@ -87,7 +93,10 @@ class Chef
       attribute :change_id, :kind_of => String, :name_attribute => true, :required => true
       attribute :data, :kind_of => Hash
 
+      provides :delivery_change_db
+      
       self.resource_name = :delivery_change_db
+
       def initialize(name, run_context=nil)
         super
         @provider = Chef::Provider::DeliveryChangeDb

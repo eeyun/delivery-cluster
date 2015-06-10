@@ -41,11 +41,11 @@ class Chef
           end
         end
 
-        node.run_state['delivery'] = {} if !node.run_state['delivery']
-        node.run_state['delivery']['change'] = {} if !node.run_state['delivery']['change']
-        node.run_state['delivery']['change']['data'] = {} if !node.run_state['delivery']['change']['data']
-        node.run_state['delivery']['change']['data']['spawned_changes'] = {} if !node.run_state['delivery']['change']['data']['spawned_changes']
-        node.run_state['delivery']['change']['data']['spawned_changes'][pipeline] = change_id.split("%")[0] ## Clean up wierd trailing char
+        node.run_state['delivery'] ||= {}
+        node.run_state['delivery']['change'] ||= {}
+        node.run_state['delivery']['change']['data'] ||= {}
+        node.run_state['delivery']['change']['data']['spawned_changes'] ||= {}
+        node.run_state['delivery']['change']['data']['spawned_changes'][pipeline] ||= change_id.split("%")[0] ## Clean up wierd trailing char
       end
 
       def create_pipeline(node)
@@ -115,7 +115,9 @@ class Chef
       attribute :pipeline, :kind_of => [ String ], :name_attribute => true, :required => true
       attribute :auto_approve, :kind_of =>  [ TrueClass, FalseClass ]
 
-      self.resource_name = :duplicate_change_on_new_pipeline
+      provides :delivery_duplicate_change_on_pipeline
+
+      self.resource_name = :delivery_duplicate_change_on_pipeline
 
       def initialize(name, run_context=nil)
         super
